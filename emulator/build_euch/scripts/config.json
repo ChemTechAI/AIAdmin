@@ -1,0 +1,20 @@
+{
+  "store": {
+    "defaults": {
+      "proxy": {
+        "protocol": "http",
+        "host": "localhost",
+        "port": "5051"
+      },
+      "startup": {
+        "modules": [
+          {
+            "procName": "ai_engine",
+            "file": "engine.bat",
+            "cwd": "./engine"
+          }
+        ]
+      }
+    }
+  }
+}

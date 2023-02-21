@@ -1,0 +1,159 @@
+{% extends "templates/basic/base.html" %}
+{% block title %} Emulator {% endblock %}
+{% block headername %} Emulator {% endblock %}
+{% block content %}
+
+    {% if error %}
+        {% if error == 'Saved'%}
+            <div class="success"> {{ error }} </div>
+        {% else %}
+            <div class="fail"> {{ error }} </div>
+        {% endif %}
+    {% endif %}
+    <h2>Docker status</h2>
+    {% if docker_status %}
+         <table>
+             {% if columns_in_docker_status %}
+                 <tr>
+                     {% for column_name in columns_in_docker_status %}
+                         <th>{{column_name}}</th>
+                     {% endfor %}
+                 </tr>
+             {% endif %}
+    {% for container_id, container_data in docker_status.items %}
+        <tr>
+        <td>
+            {{ container_id }}
+        </td>
+        {% for container_param, container_value in container_data.items %}
+            {% if container_param == 'Status' %}
+                {% if container_value %}
+                    <td>
+                        <div class="success"> RUNNING </div>
+                    </td>
+                    <td>
+                        <a class="button-4" href="{% url "emulator:stop_container" container_id %}">
+                            Stop container </a>
+                    </td>
+                {% else %}
+                    <td>
+                        <div class="fail"> NOT RUNNING </div>
+                    </td>
+                    <td>
+                        <a class="button-4" href="{% url "emulator:start_container" container_id %}">
+                            Start container </a>
+                    </td>
+                {% endif %}
+            {% else %}
+                <td>
+                    {{ container_value }}
+                </td>
+            {% endif %}
+        {% endfor %}
+    {% endfor %}
+    </tr>
+    </table>
+    {% endif %}
+
+    <h2>Projects branches status</h2>
+    {% if projects_info %}
+        <table>
+        {% if columns_in_project_table %}
+        <tr>
+        {% for column_name in columns_in_project_table %}
+            <th>{{column_name}}</th>
+        {% endfor %}
+        </tr>
+        {% endif %}
+        {% for project_name, project_data in projects_info.items %}
+            <tr>
+            <td>
+            {{ project_name }}
+            </td>
+            {% for project_param, project_value in project_data.items %}
+                <td>
+                {% if project_param == 'Branches' %}
+                    <br>
+                    <form method="POST" action="{% url "emulator:change_branch" project_name %}"
+                          id="choose_branch_for_{{ project_name }}">
+                        {% csrf_token %}
+                        <datalist id="branch_names_for_{{ project_name }}">
+                            {% for branch in project_value %}
+                                <option value="{{ branch }}">{{ branch }}</option>
+                            {% endfor %}
+                        </datalist>
+                        <input type="text" name="branch_name" list="branch_names_for_{{ project_name }}"
+                               placeholder="-- Select Branch --" required>
+                    </form>
+
+                {% else %}
+                    {{ project_value }}
+                {% endif %}
+                    </td>
+            {% endfor %}
+            <td>
+            <button class="button-4" type="submit" form="choose_branch_for_{{ project_name }}">Change branch</button>
+            </td>
+        {% endfor %}
+        </tr>
+    </table>
+    {% endif %}
+
+<h2>Set emulator parameters</h2>
+<form method="POST" action="{% url "emulator:index" %}" id="set_params">
+    {% csrf_token %}
+    <b>Project name:</b>
+    <datalist id="project_names">
+        {% for project_from_list in projects_list %}
+            <option value="{{ project_from_list }}">{{ project_from_list }}</option>
+        {% endfor %}
+    </datalist>
+    <input type="text" name="project_name" list="project_names" placeholder="-- Select Project --"
+              required>
+    <br>
+    <b>Start date:</b>
+    <input type="datetime-local" name="datetime_start" placeholder="2022-06-12T19:30">
+    &nbsp<b>Finish date:</b>
+    <input type="datetime-local" name="datetime_finish" placeholder="2022-06-14T00:00">
+    <br>
+    <b>Interval (sec):</b>
+    <input type="number" name="interval" placeholder="0.1" step="0.1" required>
+    <br><br>
+    <button class="button-4" type="submit" form="set_params">Update config</button>
+</form>
+
+<h2>Set frontend</h2>
+<form method="POST" action="{% url "emulator:change_frontend" %}" id="choose_frontend">
+    {% csrf_token %}
+    <b>Project name:</b>
+    <datalist id="frontends_names">
+        {% for frontend_option in frontends_list %}
+            <option value="{{ frontend_option }}">{{ frontend_option }}</option>
+        {% endfor %}
+    </datalist>
+    <input type="text" name="frontend_name" list="frontends_names"
+           placeholder={% if current_frontend %}{{ current_frontend }}{% else %}"-- Select Frontend --"{% endif %}
+              required>
+    <br>
+    <button class="button-4" type="submit" form="choose_frontend">Change frontend</button>
+</form>
+    <h2>Load CSV to database</h2>
+    <a class="button-link" href={% url 'datasets:index' %}>Datasets loading</a>
+    <br>
+    <br>
+
+
+    {% if emulator_status %}
+        {% if 'not working' in emulator_status%}
+            <div class="fail"> {{ emulator_status }} </div>
+        {% else %}
+            {{ emulator_status }}
+            <br>
+            <br>
+            <a class="button-link" href="{% url "emulator:launched" %}"> Open emulator </a>
+            <br>
+            <br>
+        {% endif %}
+    {% endif %}
+
+{% endblock %}

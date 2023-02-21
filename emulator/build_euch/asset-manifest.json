@@ -1,0 +1,25 @@
+{
+  "files": {
+    "main.css": "./static/css/main.c1563a04.chunk.css",
+    "main.js": "./static/js/main.af659f16.chunk.js",
+    "main.js.map": "./static/js/main.af659f16.chunk.js.map",
+    "runtime-main.js": "./static/js/runtime-main.7f70f42b.js",
+    "runtime-main.js.map": "./static/js/runtime-main.7f70f42b.js.map",
+    "static/css/2.674c27c3.chunk.css": "./static/css/2.674c27c3.chunk.css",
+    "static/js/2.dac0e936.chunk.js": "./static/js/2.dac0e936.chunk.js",
+    "static/js/2.dac0e936.chunk.js.map": "./static/js/2.dac0e936.chunk.js.map",
+    "index.html": "./index.html",
+    "static/css/2.674c27c3.chunk.css.map": "./static/css/2.674c27c3.chunk.css.map",
+    "static/css/main.c1563a04.chunk.css.map": "./static/css/main.c1563a04.chunk.css.map",
+    "static/js/2.dac0e936.chunk.js.LICENSE.txt": "./static/js/2.dac0e936.chunk.js.LICENSE.txt",
+    "static/js/main.af659f16.chunk.js.LICENSE.txt": "./static/js/main.af659f16.chunk.js.LICENSE.txt",
+    "static/media/index.css": "./static/media/Roboto-Thin.1711b41f.ttf"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.7f70f42b.js",
+    "static/css/2.674c27c3.chunk.css",
+    "static/js/2.dac0e936.chunk.js",
+    "static/css/main.c1563a04.chunk.css",
+    "static/js/main.af659f16.chunk.js"
+  ]
+}

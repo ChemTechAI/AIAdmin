@@ -1,0 +1,147 @@
+{% extends "templates/basic/base.html" %}
+
+{% load static %}
+
+{% block title %} Test function {% endblock %}
+{% block headername %} Function testing {% endblock %}
+
+{% block content %}
+
+    <form action="{% url "test_calculations:add_project" %}" method="POST">
+        {% csrf_token %}
+        <input type="text" name="git_http" placeholder="git@github.com:ChemTechAI/PROJECT_NAME.git" size="50" required>
+        <button class="button-4" type='submit'>Add project from git</button>
+    </form>
+
+    <h2>Choose project</h2>
+
+    <form action="{% url "test_calculations:reset" %}" method="POST">
+        {% csrf_token %}
+        <button class="button-4" type='submit'> Reset </button>
+    </form>
+    <br>
+
+    <form action="{% url "test_calculations:index" %}" method="POST" id="choose_project">
+        {% csrf_token %}
+        <input type="text" name="project_name" list="project_names" placeholder={% if chosen_project_name %}{{ chosen_project_name }}{% else %}"-- Select Project --"{% endif %}>
+            <datalist id="project_names">
+                {% for project_from_list in projects_list %}
+                    <option value="{{ project_from_list }}">{{ project_from_list }}</option>
+                {% endfor %}
+            </datalist>
+        <button class="button-4" form="choose_project" type="submit">Choose project</button>
+    </form>
+    <br>
+    {% if chosen_project_name %}
+    <form action="{% url "test_calculations:index" %}" method="POST" id="choose_branch">
+            {% csrf_token %}
+            <input type="text" name="git_branch_name" list="branch_names_list" placeholder={% if active_branch %}{{ active_branch }}{% else %}"-- Select Branch --"{% endif %}>
+                <datalist id="branch_names_list">
+                    {% for branch_name in remotes_branches_names %}
+                        <option value="{{ branch_name }}">{{ branch_name }}</option>
+                    {% endfor %}
+                </datalist>
+            <button class="button-4" form="choose_branch" type="submit">Choose branch</button>
+    </form>
+    <br>
+    {% endif %}
+
+    {{ error }}
+
+    {% if chosen_project_name and functions_list %}
+        <form action="{% url "test_calculations:index" %}" method="POST" id="choose_function">
+            {% csrf_token %}
+            <input type="text" name="function_name" list="function_names" placeholder={% if chosen_function_name %}{{ chosen_function_name }}{% else %}"-- Select function --"{% endif %}>
+                <datalist id="function_names">
+                    {% for function_from_list in functions_list %}
+                        <option value="{{ function_from_list }}">{{ function_from_list }}</option>
+                    {% endfor %}
+                </datalist>
+            <button class="button-4" form="choose_function" type="submit">Choose function</button>
+        </form>
+
+    {% endif %}
+    <br>
+    {% if chosen_function_name and function_params %}
+        <form action="{% url "test_calculations:index" %}" method="POST" name="specified_parameters" enctype="multipart/form-data">
+        {% csrf_token %}
+            <h3>Set params manually </h3>
+            {% for parameter_name, parameter_value in function_params.items %}
+
+                <b>Parameter name:</b> {{ parameter_name }}
+                {% if 'pandas.core.frame.DataFrame' in parameter_value.type %}
+                    <input type="file" name="{{ parameter_name }}">
+                {% elif 'bool' in parameter_value.type %}
+                    <input type="checkbox" checked="checked">
+                {% elif 'str' in parameter_value.type %}
+                    <input type="text" name="{{ parameter_name }}">
+                {% else %}
+                    <label for="{{ parameter_name }}_start">start:</label>
+                    <input type="number" name="{{ parameter_name }}_start" step=".0001"
+                                         placeholder={{ parameter_value.value.start }}>
+                    <label for="{{ parameter_name }}_stop">stop:</label>
+                    <input type="number" name="{{ parameter_name }}_stop" step=".0001"
+                                        placeholder={{ parameter_value.value.stop }}>
+                    <label for="{{ parameter_name }}_step">step:</label>
+                    <input type="number" name="{{ parameter_name }}_step" step=".0001"
+                                        placeholder={{ parameter_value.value.step }}>
+
+                {% endif %}
+                <i><b>Parameter type:</b></i> {{ parameter_value.type }}
+                <br><br>
+            {% endfor %}
+            {% if config_params_html %}
+                <h3>Set config: </h3>
+                {% autoescape off %}
+                    {{ config_params_html }}
+                {% endautoescape %}
+            {% endif %}
+            <h3>Or use csv file with data </h3>
+            <input type="file" name="file" style="border: 1px solid black; padding: 5px;">
+            <br><br>
+            <button class="button-4" type="submit" style="height:50px;width:200px"> Calculate function </button>
+        </form>
+    {% endif %}
+
+    {% if task_id %}
+        {{ 'task_id' }}
+        {{ task_id }}
+       <div class='progress-wrapper'>
+        <div id='progress-bar' class='progress-bar' style="background-color: #68a9ef; width: 0%;">&nbsp;</div>
+      </div>
+      <div id="progress-bar-message">Waiting for progress to start...</div>
+      <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
+      <script>
+      function updateProgress (progressUrl) {
+          fetch(progressUrl).then(function(response) {
+              response.json().then(function(data) {
+                  // update the appropriate UI components
+                  setProgress(data.state, data.details);
+                  setTimeout(updateProgress, 500, progressUrl);
+              });
+          });
+      }
+      var progressUrl = '{% url "task_status" task_id %}';  // django template usage
+      updateProgress(progressUrl);
+    </script>
+    {% endif %}
+
+    {% if last_saved_result %}
+        <h2> Last saved result: </h2>
+        <div class="plotly-graph">
+            {% autoescape off %}
+                {{ last_saved_result }}
+            {% endautoescape %}
+        {% if html_table %}
+            {% autoescape off %}
+                {{ html_table }}
+            {% endautoescape %}
+        {% endif %}
+        </div>
+        <br>
+        <a class="button-link" href="{% url "test_calculations:load" %}"> Download result </a>
+        <br>
+        <br>
+    {% endif %}
+
+{% endblock %}
