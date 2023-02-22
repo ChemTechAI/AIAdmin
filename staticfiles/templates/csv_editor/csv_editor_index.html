@@ -1,0 +1,35 @@
+{% extends "templates/basic/base.html" %}
+
+{% block title %} Csv editor {% endblock %}
+{% block headername %} CSV editor {% endblock %}
+
+{% block content %}
+
+    {% if error %}
+        {{ error }}
+        <br>
+        <br>
+        {% if next_to %}
+            <a class="button-link" href={{ next_to }}> Back </a>
+        {% else %}
+            <a class="button-link" href={% url 'csv_editor:index' %}> Back </a>
+        {% endif %}
+    {% else %}
+    <form action="{% url 'csv_editor:csv_editor_plot' %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <p>
+            <label for="table_name">Table name: </label>
+            <datalist id="table_names_list">
+                {% for table_name in table_names %}
+                    <option value="{{ table_name }}">{{ table_name }}</option>
+                {% endfor %}
+            </datalist>
+            <input id="table_name" type="text" name="table_name" list="table_names_list">
+        </p>
+        <input type="file" title="Upload file" name="csv_file" style="border: 1px solid black; padding: 5px;
+" required="required">
+        <input type="submit" value="Upload" style="border: 1px solid green; padding:5px; border-radius: 2px; cursor: pointer;">
+    </form>
+    {% endif %}
+{% endblock %}
+

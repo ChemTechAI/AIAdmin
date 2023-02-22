@@ -22,7 +22,7 @@ from test_calculations import views as test_views
 from . import views
 
 urlpatterns = [
-    path(':', include('slider_function.urls')),
+    # path(':', include('slider_function.urls')),
     path('admin/', admin.site.urls),
     path('last_photo/', include('last_photo.urls')),
     path('plotly_graph/', include('plotly_graph.urls')),

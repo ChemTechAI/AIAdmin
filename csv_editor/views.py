@@ -10,7 +10,6 @@ from django.conf import settings
 
 from sqlalchemy import create_engine
 from pandas import DataFrame, read_csv
-from datasets.models import TestDataset
 
 # Create your views here.
 from csv_editor.csv_editor_tornado import run_tornado_with_bokeh, plot_csv_editor, IndexHandler
@@ -19,6 +18,7 @@ import requests
 from bokeh.embed import server_session
 from bokeh.client import pull_session
 
+from csv_editor.models import CSVEditorDatasetModel
 
 user = settings.DATABASES['default']['USER']
 password = settings.DATABASES['default']['PASSWORD']
@@ -35,10 +35,10 @@ def csv_editor_view(request):
                             session_id=session.id,
                             url="http://localhost:5006/csv_editor",
                             )
-    return render(request, 'templates/csv_editor/embed1.html', {'script': script})
+    return render(request, 'templates/csv_editor/embed.html', {'script': script})
 
 
-class Datasets(View):
+class CSVEditorDatasets(View):
 
     def get(self, request):
         request.session['next_to'] = request.META.get('HTTP_REFERER')
@@ -46,7 +46,7 @@ class Datasets(View):
         table_names = [table_name for table_name in engine.table_names()
                        if 'auth' not in table_name and 'django' not in table_name]
 
-        return render(request, 'templates/datasets/dataset_index.html', {'table_names': table_names})
+        return render(request, 'templates/csv_editor/csv_editor_index.html', {'table_names': table_names})
 
     def post(self, request):
         context = {}
@@ -66,7 +66,10 @@ class Datasets(View):
                 # messages.error(request, "Uploaded file is too big (%.2f MB)." % (csv_file.size / (1000 * 1000),))
                 # return HttpResponseRedirect(reverse("myapp:upload_csv"))
 
-            file_data = read_csv(csv_file, parse_dates=True)
+            file_data = read_csv(csv_file, parse_dates=True, index_col='datetime')
+            smoothing_window = 1
+            file_data = file_data.rolling(window=f'{smoothing_window}min').mean()
+
             tags_not_allowed = [tag for tag in ['datetime', 'item_id', 'value'] if tag not in file_data]
 
             if tags_not_allowed:
@@ -75,21 +78,20 @@ class Datasets(View):
                 file_data = melt_table(file_data)
 
             if table_name:
-
                 engine = create_engine(database_url, echo=False)
                 file_data.to_sql(name=table_name, con=engine, if_exists='replace')
 
             else:
-                table_name = 'historytable'
+                table_name = 'csv_editor_table'
 
-                model_ = TestDataset()
+                model_ = CSVEditorDatasetModel()
                 model_.truncate()
 
                 if 'id' not in file_data:
                     file_data.index = list(range(file_data.shape[0]))
 
                 for id in file_data.index:
-                    form = TestDataset()
+                    form = CSVEditorDatasetModel()
                     form.id = id
                     form.datetime = file_data.loc[id, 'datetime']
                     form.item_id = file_data.loc[id, 'item_id']
@@ -104,10 +106,10 @@ class Datasets(View):
 
             status = f'Table is saved with name: {table_name}'
             context['error'] = status
-            return render(request, 'templates/datasets/dataset_index.html', context)
+            return render(request, 'templates/csv_editor/embed.html', context)
         except BaseException as error:
             context['error'] = str(error)
-            return render(request, 'templates/datasets/dataset_index.html', context)
+            return render(request, 'templates/csv_editor/csv_editor_index.html', context)
 
 
 def melt_table(data: DataFrame):
@@ -120,21 +122,4 @@ def melt_table(data: DataFrame):
 
     return versed_data
 
-# if __name__ == '__main__':
-#     # file_data = pd.read_csv(r'C:\Users\User\PycharmProjects\EuroChem\BackEnd_EUCH\tests\test_data\eurochem_test_data — копия.csv',
-#
-#     file_data = pd.read_csv(
-#             r'C:\Users\User\PycharmProjects\EuroChem\BackEnd_EUCH\tests\test_data\calculated — копия.csv',
-#             parse_dates=True)
-#
-#     tags_not_allowed = [tag for tag in ['datetime', 'item_id', 'values'] if tag not in file_data]
-#     if tags_not_allowed:
-#         if 'datetime' not in tags_not_allowed:
-#             file_data.index = file_data['datetime']
-#         file_data = melt_table(file_data)
-#
-#     if 'id' not in file_data:
-#         file_data.index = list(range(file_data.shape[0]))
-#
-#     print(file_data)
 

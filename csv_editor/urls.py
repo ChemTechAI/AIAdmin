@@ -6,5 +6,6 @@ from . import views
 app_name = 'csv_editor'
 
 urlpatterns = [
-        path('', views.csv_editor_view, name='index'),
+        path('csv_editor_plot', views.csv_editor_view, name='csv_editor_plot'),
+        path('', views.CSVEditorDatasets.as_view(), name='index')
              ]
