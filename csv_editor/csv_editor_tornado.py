@@ -160,7 +160,7 @@ env = Environment(loader=FileSystemLoader('templates'))
 class IndexHandler(RequestHandler):
     def get(self):
         template = env.get_template('embed.html')
-        script = server_document('http://localhost:5006/bkapp')
+        script = server_document('http://127.0.0.1:5006/csv_editor')
         self.write(template.render(script=script, template="Tornado"))
 
 
@@ -169,7 +169,6 @@ def prepare_dataset_to_plot():
     data = pd.read_sql(sql='SELECT index as id, datetime, item_id, value FROM csv_editor_table', con=engine)
     data['datetime'] = pd.to_datetime(data['datetime'])
     data.set_index('id', inplace=True)
-
     for name, color in zip(set(data['item_id']), color_palet):
         data.loc[data['item_id'] == name, 'color'] = color
 
@@ -204,15 +203,17 @@ def create_table_to_plot(source):
     return table
 
 
-def save_changes(changed_df):
+def save_changes(changed_df: pd.DataFrame):
     # model = CSVEditorDatasetModel()
     # model.value = changed_df['value'].values
     # model.datetime = changed_df['datetime'].values
     # model.item_id = changed_df['item_id'].values
     # model.save()
+    changed_df['datetime'] = changed_df['datetime'].astype(str)
+    updated_values = changed_df[['datetime', 'value']].to_dict()
+    print(updated_values)
     for item_id in set(changed_df['item_id'].values):
-        CSVEditorDatasetModel.objects.filter(item_id=item_id).update(datetime=changed_df['datetime'].values[0],
-                                                                     value=changed_df['value'].values[0])
+        CSVEditorDatasetModel.objects.filter(item_id=item_id).update(**updated_values)
 
 def previous_page_view():
     pass
@@ -260,6 +261,7 @@ def plot_csv_editor(doc):
         return previous_page_view()
 
     def download_callback(new):
+
         return source.to_df()
 
     # CREATE BUTTONS
@@ -272,9 +274,9 @@ def plot_csv_editor(doc):
     # SET EVENTS TO EACH BUTTONS
     synchronize_button.on_event("button_click", save_df)
     return_button.on_event("button_click", return_button_callback)
-    download_button.on_event("button_click", download_callback)
-    # download_button.js_on_event("button_click", CustomJS(args=dict(source=source),
-    #                                                  code=JS_CODE))
+    # download_button.on_event("button_click", download_callback)
+    download_button.js_on_event("button_click", CustomJS(args=dict(source=source),
+                                                     code=JS_CODE))
 
     show_content = Column(children=[ploted_figure, row(download_button, synchronize_button, return_button)], sizing_mode='stretch_both')
 
@@ -303,9 +305,9 @@ def run_bokeh_server():
 
 
 def run_tornado_with_bokeh():
-    print('Opening Tornado app with embedded Bokeh application on http://localhost:5006/')
+    # print('Opening Tornado app with embedded Bokeh application on http://localhost:5006/')
     server = run_bokeh_server()
-    server.io_loop.add_callback(view, "http://localhost:5006/csv_editor")
+    server.io_loop.add_callback(view, "http://127.0.0.1:5006/csv_editor/")
     server.io_loop.start()
     return server
 

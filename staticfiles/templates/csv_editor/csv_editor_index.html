@@ -10,12 +10,13 @@
         <br>
         <br>
         {% if next_to %}
-            <a class="button-link" href={{ next_to }}> Back </a>
+            <a class="button-link" href={% url 'csv_editor:csv_editor_plot' %}> Start table edition </a>
+            <a class="button-link" href={% url 'csv_editor:index' %}> Back to file uploading page</a>
         {% else %}
-            <a class="button-link" href={% url 'csv_editor:index' %}> Back </a>
+            <a class="button-link" href={% url 'csv_editor:index' %}> Back to file uploading page</a>
         {% endif %}
     {% else %}
-    <form action="{% url 'csv_editor:csv_editor_plot' %}" method="post" enctype="multipart/form-data">
+    <form action="{% url 'csv_editor:index' %}" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <p>
             <label for="table_name">Table name: </label>
@@ -29,6 +30,11 @@
         <input type="file" title="Upload file" name="csv_file" style="border: 1px solid black; padding: 5px;
 " required="required">
         <input type="submit" value="Upload" style="border: 1px solid green; padding:5px; border-radius: 2px; cursor: pointer;">
+        <br>
+        <br>
+        <input type="text" title="Set smoothing window" name="smoothing_window" style="border: 1px solid black; padding: 5px;
+" required="required">
+
     </form>
     {% endif %}
 {% endblock %}
