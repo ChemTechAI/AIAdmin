@@ -2,13 +2,14 @@ import datetime
 import os
 
 import js2py as js2py
+from js2py import require
 import pandas as pd
 from asgiref.sync import sync_to_async
 from bokeh.embed import server_document
 from bokeh.io import curdoc
 from bokeh.layouts import column, row
 from bokeh.models import DateFormatter, Button, CustomJS, DataTable, TableColumn, PointDrawTool, ColumnDataSource, \
-    HoverTool
+    HoverTool, Div, TextInput
 from bokeh.models import Slider
 from bokeh.palettes import Spectral10 as color_palet
 from bokeh.plotting import figure, Column
@@ -274,26 +275,16 @@ def plot_csv_editor(doc):
     def save_df(new):
         df = source.to_df()
         save_changes(changed_df=df)
+        text.value = f'{datetime.datetime.now().time().strftime("%H:%M:%S")} | Successfully synchronized'
+
         print('Successfully synchronized')
 
     def drop_datetime_in_df(new):
         df = source.to_df()
         save_changes(changed_df=df, drop_datetime=True)
+
+        text.value = f'{datetime.datetime.now().time().strftime("%H:%M:%S")} | All deleted datetime indexes was successfully synchronized'
         print('Successfully drop datetime')
-
-    def return_button_callback(new):
-        df = source.to_df()
-        save_changes(changed_df=df)
-        js2py.eval_js('window.open("http://127.0.0.1:8000/csv_editor/")')
-        js2py.eval_js('history.back()')
-        js2py.eval_js('console.log("_self")')
-        # driver = webdriver.PhantomJS()
-        # driver.get(url)
-        # result = driver.execute_script(myscript)
-        # driver.quit()
-        # js2py.eval_js(CustomJS(args=dict(urls=['http://127.0.0.1:8000/csv_editor/']),
-        #                    code="urls.forEach(url => window.open(url,'_self'))").to_json())
-
 
     # CREATE BUTTONS
     drop_datetime_button = Button(label="Synchronize deleted datetime with the main table",
@@ -302,18 +293,16 @@ def plot_csv_editor(doc):
                              button_type="success")
     return_button = Button(label="Return to settings",
                                 button_type="success")
-
+    text = TextInput(
+        value=f'{datetime.datetime.now().time().strftime("%H:%M:%S")} | No changes yet', width=500)
     # SET EVENTS TO EACH BUTTONS
     synchronize_button.on_event("button_click", save_df)
     drop_datetime_button.on_event("button_click", drop_datetime_in_df)
-    # return_button.on_event("button_click", return_button_callback)
+    # text.js_on_change('value', CustomJS(code=f'alert("{text.value}")'))
     return_button.js_on_click(CustomJS(args=dict(urls=['http://127.0.0.1:8000/csv_editor/csv_editor_settings']),
                            code="urls.forEach(url => window.open(url,'_self'))"))
-    # download_button.on_event("button_click", download_callback)
-    # download_button.js_on_event("button_click", CustomJS(args=dict(source=source),
-    #                                                      code=JS_CODE))
 
-    show_content = Column(children=[ploted_figure, row(drop_datetime_button,synchronize_button, return_button)], sizing_mode='stretch_both')
+    show_content = Column(children=[ploted_figure, row(drop_datetime_button,synchronize_button, return_button, text)], sizing_mode='stretch_both')
 
     doc.add_root(show_content)
     doc.theme = built_in_themes['dark_minimal']
