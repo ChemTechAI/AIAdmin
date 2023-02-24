@@ -12,4 +12,5 @@ urlpatterns = [
         path('csv_editor_settings', views.settings_index, name='settings'),
         path('add_tag', views.add_tag, name='add_tag'),
         path('reset', views.reset, name='reset'),
+        path('load', views.load_full_table, name='load'),
              ]

@@ -1,26 +1,19 @@
 from threading import Thread
 
 import pandas as pd
-from bokeh.server.server import Server
-from bokeh.util.browser import view
 from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.http.response import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
-from django.views import View
 from django.conf import settings
 
 from sqlalchemy import create_engine
 from pandas import DataFrame, read_csv
-
-# Create your views here.
-from csv_editor.csv_editor_tornado import run_tornado_with_bokeh, pivot_table
-from django.http import HttpResponse, JsonResponse
-import requests
 from bokeh.embed import server_session
 from bokeh.client import pull_session
 
-from csv_editor.models import CSVEditorDatasetModel, CSVEditorTempDatasetModel
+from csv_editor.csv_editor_tornado import run_tornado_with_bokeh, pivot_table
+from csv_editor.models import CSVEditorDatasetModel
 
 user = settings.DATABASES['default']['USER']
 password = settings.DATABASES['default']['PASSWORD']
@@ -28,23 +21,23 @@ database_name = settings.DATABASES['default']['NAME']
 
 database_url = f'postgresql://{user}:{password}@localhost:5432/{database_name}'
 
+TAG_LIMIT = 5
 
-# def prepare_table(dataframe: pd.DataFrame):
-#     tags_not_allowed = [tag for tag in ['datetime', 'item_id', 'value'] if tag in dataframe]
-#     if 'index' in dataframe.columns:
-#         dataframe.drop(columns='index', inplace=True)
-#
-#     print('tags_not_allowed')
-#     print(tags_not_allowed)
-#     if len(tags_not_allowed) == 3:
-#         print('here')
-#         if 'datetime' in tags_not_allowed:
-#             dataframe.set_index('datetime', inplace=True)
-#         dataframe = pivot_table(dataframe)
-#     else:
-#         dataframe = melt_table(dataframe)
-#     print(dataframe.columns)
-#     return dataframe
+
+def load_full_table(request):
+    engine = create_engine(database_url, echo=False)
+    try:
+        full_table = pd.read_sql(f'SELECT index, datetime, value, item_id FROM csv_editor_table', con=engine)
+
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename=export.csv'
+
+        full_table.to_csv(path_or_buf=response, index=False)
+        return response
+    except BaseException as error:
+        return render(request,
+                      "templates/test_calculations/test_calculations_index.html",
+                      {'error': error})
 
 
 def csv_editor_view(request):
@@ -86,13 +79,21 @@ def add_tag(request):
     chosen_tags = request.session.get('chosen_tags') or []
     new_tag = request.POST.get('add_tag', None)
     request.session['tags'] = [tag for tag in tags if tag not in chosen_tags]
+
     if new_tag:
+        if len(chosen_tags) >= TAG_LIMIT:
+            context = {}
+            context['error'] = 'Too many tags'
+            context['tags'] = request.session['tags']
+            context['chosen_tags'] = chosen_tags
+            return render(request, 'templates/csv_editor/csv_editor_settings.html', context)
         chosen_tags.append(new_tag)
         request.session['chosen_tags'] = chosen_tags
     return redirect('csv_editor:settings')
 
 
 def reset(request):
+    request.session['tags'] = request.session['tags'] + request.session['chosen_tags']
     for key in ['chosen_tags']:
         try:
             del request.session[key]
