@@ -21,7 +21,7 @@ database_name = settings.DATABASES['default']['NAME']
 
 database_url = f'postgresql://{user}:{password}@localhost:5432/{database_name}'
 
-TAG_LIMIT = 5
+TAG_LIMIT = 10
 
 
 def load_full_table(request):
@@ -60,22 +60,12 @@ def csv_editor_view(request):
 
 
 def index(request):
-    context = {}
-    context.update(request.session)
-    context['tags'] = request.session.get('tags')
-    if not context['tags']:
-        engine = create_engine(database_url, echo=False)
-        request.session['chosen_tag'] = []
-        try:
-            full_table = pd.read_sql(f'SELECT index, datetime, value, item_id FROM csv_editor_table', con=engine)
-            request.session['tags'] = full_table['item_id'].unique().tolist()
-        except BaseException as error:
-            print(error)
-            request.session['tags'] = []
-
-    context['chosen_tag'] = request.session['chosen_tag']
-
-    return render(request, 'templates/csv_editor/csv_editor_index.html', context)
+    chosen_tag = request.session.get('chosen_tag')
+    if chosen_tag:
+        session_started = True
+    else:
+        session_started = False
+    return render(request, 'templates/csv_editor/csv_editor_index.html', {'session_started': session_started})
 
 
 def settings_index(request):
@@ -140,14 +130,14 @@ def upload_dataframe(request):
         data_for_smooth = data_for_smooth.rolling(window=f'{smoothing_window}min').mean()
         file_data = melt_table(data_for_smooth)
 
-    request.session['tags'] = file_data['item_id'].unique().tolist()
-
     tags_not_allowed = [tag for tag in ['datetime', 'item_id', 'value'] if tag not in file_data]
 
     if tags_not_allowed:
         if 'datetime' not in tags_not_allowed:
             file_data.index = file_data['datetime']
         file_data = melt_table(file_data)
+
+    request.session['tags'] = file_data['item_id'].unique().tolist()
 
     model_ = CSVEditorDatasetModel()
     model_.truncate()
