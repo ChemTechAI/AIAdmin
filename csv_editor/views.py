@@ -32,7 +32,7 @@ def load_full_table(request):
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename=export.csv'
         full_table = pivot_table(full_table)
-        full_table.to_csv(path_or_buf=response, index=False)
+        full_table.to_csv(path_or_buf=response)
         return response
     except BaseException as error:
         return render(request,
