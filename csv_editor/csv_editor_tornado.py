@@ -216,13 +216,13 @@ def create_table_to_plot(source):
 def save_changes(changed_df: pd.DataFrame):
     engine = create_engine(database_url)
     main_data = pd.read_sql(sql='SELECT index, datetime, item_id, value FROM csv_editor_table', con=engine)
-    changed_df.rename(columns={'id':"index"}, inplace=True)
-    if isinstance(changed_df['datetime'].iloc[-1], int):
+    changed_df.rename(columns={'id': "index"}, inplace=True)
+    if not isinstance(changed_df['datetime'].iloc[-1], (str, datetime.datetime)):
         changed_df['datetime'] = changed_df['datetime'].apply(
             lambda x: pd.to_datetime('1970-01-01') + datetime.timedelta(milliseconds=float(x)))
     old_idx = main_data.loc[main_data['item_id'].isin(set(changed_df['item_id']))].index
     main_data = main_data.drop(old_idx)
-    main_data = pd.concat([main_data, changed_df[['index','datetime', 'item_id', 'value']]])
+    main_data = pd.concat([main_data, changed_df[['index', 'datetime', 'item_id', 'value']]])
     main_data.sort_values(by='index')
     engine = create_engine(database_url, echo=False)
     main_data.to_sql(name='csv_editor_table', con=engine, if_exists='replace', chunksize=100000)
