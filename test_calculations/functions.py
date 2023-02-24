@@ -42,7 +42,7 @@ def get_function_object_by_name(project_name: str, function_name: str):
     sys.path.append(chosen_project_path)
     for root, _, files in os.walk(chosen_project_path, topdown=True):
         for file in files:
-            if '.py' in file and '__' not in file and '__pycache__' not in root:
+            if file.endswith('.py') and '__' not in file and '__pycache__' not in root:
                 path_to_py_file = os.path.join(root, file).replace('\\', '/').replace('/', '.')
                 module = get_module_object_from_python_file(path_to_py_file=path_to_py_file,
                                                             project_name=project_name)
