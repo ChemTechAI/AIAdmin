@@ -139,8 +139,12 @@ def upload_dataframe(request):
 
     request.session['tags'] = file_data['item_id'].unique().tolist()
 
-    model_ = CSVEditorDatasetModel()
-    model_.truncate()
+    try:
+        model_ = CSVEditorDatasetModel()
+        model_.truncate()
+    except BaseException as error:
+        print(error)
+
     engine = create_engine(database_url, echo=False)
     file_data.to_sql(name=table_name, con=engine, if_exists='replace', chunksize=100000)
 
