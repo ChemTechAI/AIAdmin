@@ -133,13 +133,14 @@ def upload_dataframe(request):
     # return HttpResponseRedirect(reverse("myapp:upload_csv"))
     file_data = read_csv(csv_file, parse_dates=True, index_col='datetime')
     request.session['chosen_tag'] = []
-    request.session['tags'] = file_data['item_id'].unique().tolist()
 
     smoothing_window = request.session.get('smoothing_window')
     if smoothing_window:
         data_for_smooth = pivot_table(file_data)
         data_for_smooth = data_for_smooth.rolling(window=f'{smoothing_window}min').mean()
         file_data = melt_table(data_for_smooth)
+
+    request.session['tags'] = file_data['item_id'].unique().tolist()
 
     tags_not_allowed = [tag for tag in ['datetime', 'item_id', 'value'] if tag not in file_data]
 
