@@ -262,7 +262,7 @@ def plot_csv_editor(doc):
                                      legend_field='item_id'
                                      )
 
-    # table = create_table_to_plot(source)
+    table = create_table_to_plot(source)
 
     draw_tool = PointDrawTool(renderers=[renderer], empty_value='white', add=False)
     points_hover_tool = create_hover_tool(renderer=renderer)
@@ -302,7 +302,7 @@ def plot_csv_editor(doc):
     return_button.js_on_click(CustomJS(args=dict(urls=['http://127.0.0.1:8000/csv_editor/csv_editor_settings']),
                            code="urls.forEach(url => window.open(url,'_self'))"))
 
-    show_content = Column(children=[ploted_figure, row(drop_datetime_button,synchronize_button, return_button, text)], sizing_mode='stretch_both')
+    show_content = Column(children=[ploted_figure, row(drop_datetime_button,synchronize_button, return_button, text), table], sizing_mode='stretch_both')
 
     doc.add_root(show_content)
     doc.theme = built_in_themes['dark_minimal']
