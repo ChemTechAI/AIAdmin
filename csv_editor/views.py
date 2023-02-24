@@ -27,11 +27,11 @@ TAG_LIMIT = 10
 def load_full_table(request):
     engine = create_engine(database_url, echo=False)
     try:
-        full_table = pd.read_sql(f'SELECT index, datetime, value, item_id FROM csv_editor_table', con=engine)
+        full_table = pd.read_sql(f'SELECT datetime, value, item_id FROM csv_editor_table', con=engine)
 
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename=export.csv'
-
+        full_table = pivot_table(full_table)
         full_table.to_csv(path_or_buf=response, index=False)
         return response
     except BaseException as error:
