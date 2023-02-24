@@ -211,8 +211,10 @@ def create_table_to_plot(source):
                       name='result_table')
     return table
 
+def group_by(data: pd.DataFrame, freq: str = 'min', method: str = 'mean') -> pd.DataFrame:
+    return getattr(data.groupby(data.index.round(freq=freq)), method)()
 
-def save_changes(changed_df: pd.DataFrame):
+def save_changes(changed_df: pd.DataFrame, drop_datetime: bool=False) -> object:
     engine = create_engine(database_url)
     main_data = pd.read_sql(sql='SELECT index, datetime, item_id, value FROM csv_editor_table', con=engine)
     changed_df.rename(columns={'id': "index"}, inplace=True)
@@ -222,10 +224,14 @@ def save_changes(changed_df: pd.DataFrame):
     old_idx = main_data.loc[main_data['item_id'].isin(set(changed_df['item_id']))].index
     main_data = main_data.drop(old_idx)
     main_data = pd.concat([main_data, changed_df[['index', 'datetime', 'item_id', 'value']]])
-
-    main_data = main_data[main_data['datetime'].isin(changed_df['datetime'])]
-
-    main_data.drop_duplicates(subset='datetime', keep='last', inplace=True)
+    if drop_datetime:
+        print(main_data.loc[main_data['datetime'].isin(changed_df['datetime'])].info(), 'main_data')
+        print(changed_df['datetime'], 'changed_df')
+        main_data = main_data.loc[main_data['datetime'].isin(changed_df['datetime'])]
+        print(main_data['datetime'])
+    main_data = group_by(pivot_table(main_data))
+    main_data = main_data.loc[main_data.index.drop_duplicates(keep='first')]
+    main_data = melt_table(main_data)
     engine = create_engine(database_url, echo=False)
     main_data.to_sql(name='csv_editor_table', con=engine, if_exists='replace', chunksize=100000)
 
@@ -255,7 +261,7 @@ def plot_csv_editor(doc):
                                      legend_field='item_id'
                                      )
 
-    table = create_table_to_plot(source)
+    # table = create_table_to_plot(source)
 
     draw_tool = PointDrawTool(renderers=[renderer], empty_value='white', add=False)
     points_hover_tool = create_hover_tool(renderer=renderer)
@@ -269,6 +275,11 @@ def plot_csv_editor(doc):
         df = source.to_df()
         save_changes(changed_df=df)
         print('Successfully synchronized')
+
+    def drop_datetime_in_df(new):
+        df = source.to_df()
+        save_changes(changed_df=df, drop_datetime=True)
+        print('Successfully drop datetime')
 
     def return_button_callback(new):
         df = source.to_df()
@@ -285,23 +296,24 @@ def plot_csv_editor(doc):
 
 
     # CREATE BUTTONS
-    download_button = Button(label="Download main table",
+    drop_datetime_button = Button(label="Synchronize deleted datetime with the main table",
                          button_type="success")
-    synchronize_button = Button(label="Synchronize with main table",
+    synchronize_button = Button(label="Save changes",
                              button_type="success")
     return_button = Button(label="Return to settings",
                                 button_type="success")
+
     # SET EVENTS TO EACH BUTTONS
     synchronize_button.on_event("button_click", save_df)
+    drop_datetime_button.on_event("button_click", drop_datetime_in_df)
     # return_button.on_event("button_click", return_button_callback)
     return_button.js_on_click(CustomJS(args=dict(urls=['http://127.0.0.1:8000/csv_editor/csv_editor_settings']),
                            code="urls.forEach(url => window.open(url,'_self'))"))
     # download_button.on_event("button_click", download_callback)
     # download_button.js_on_event("button_click", CustomJS(args=dict(source=source),
-    # download_button.js_on_event("button_click", CustomJS(args=dict(source=ColumnDataSource(prepare_dataset_to_download())),
     #                                                      code=JS_CODE))
 
-    show_content = Column(children=[ploted_figure, row(synchronize_button, return_button)], sizing_mode='stretch_both')
+    show_content = Column(children=[ploted_figure, row(drop_datetime_button,synchronize_button, return_button)], sizing_mode='stretch_both')
 
     doc.add_root(show_content)
     doc.theme = built_in_themes['dark_minimal']
