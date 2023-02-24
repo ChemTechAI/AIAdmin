@@ -43,8 +43,7 @@ function exportData(table) {
         a.download = "file.csv";
 
     }
-function table_to_csv() {
-    source = {source_obj}
+function table_to_csv(source) {
     const columns = Object.keys(source.data)
     const nrows = source.get_length()
     const lines = [columns.join(',')]

@@ -117,7 +117,7 @@ def save_dataframe(request):
     # messages.error(request, "Uploaded file is too big (%.2f MB)." % (csv_file.size / (1000 * 1000),))
     # return HttpResponseRedirect(reverse("myapp:upload_csv"))
     file_data = read_csv(csv_file, parse_dates=True, index_col='datetime')
-    del request.session['chosen_tags']
+    request.session['chosen_tag'] = []
     smoothing_window = request.session.get('smoothing_window')
     if smoothing_window:
         data_for_smooth = pivot_table(file_data)
