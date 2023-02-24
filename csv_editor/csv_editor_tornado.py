@@ -168,7 +168,7 @@ class IndexHandler(RequestHandler):
 
 def prepare_dataset_to_plot():
     engine = create_engine(database_url)
-    data = pd.read_sql(sql='SELECT index as id, datetime, item_id, value FROM csv_editor_table', con=engine)
+    data = pd.read_sql(sql='SELECT index as id, datetime, item_id, value FROM csv_editor_temp_table', con=engine)
     data['datetime'] = pd.to_datetime(data['datetime'])
     data.set_index('id', inplace=True)
     for name, color in zip(set(data['item_id']), color_palet):

@@ -1,4 +1,6 @@
 from threading import Thread
+
+import pandas as pd
 from bokeh.server.server import Server
 from bokeh.util.browser import view
 from django.contrib import messages
@@ -12,7 +14,7 @@ from sqlalchemy import create_engine
 from pandas import DataFrame, read_csv
 
 # Create your views here.
-from csv_editor.csv_editor_tornado import run_tornado_with_bokeh, plot_csv_editor, IndexHandler
+from csv_editor.csv_editor_tornado import run_tornado_with_bokeh, pivot_table
 from django.http import HttpResponse, JsonResponse
 import requests
 from bokeh.embed import server_session
@@ -27,7 +29,33 @@ database_name = settings.DATABASES['default']['NAME']
 database_url = f'postgresql://{user}:{password}@localhost:5432/{database_name}'
 
 
+# def prepare_table(dataframe: pd.DataFrame):
+#     tags_not_allowed = [tag for tag in ['datetime', 'item_id', 'value'] if tag in dataframe]
+#     if 'index' in dataframe.columns:
+#         dataframe.drop(columns='index', inplace=True)
+#
+#     print('tags_not_allowed')
+#     print(tags_not_allowed)
+#     if len(tags_not_allowed) == 3:
+#         print('here')
+#         if 'datetime' in tags_not_allowed:
+#             dataframe.set_index('datetime', inplace=True)
+#         dataframe = pivot_table(dataframe)
+#     else:
+#         dataframe = melt_table(dataframe)
+#     print(dataframe.columns)
+#     return dataframe
+
+
 def csv_editor_view(request):
+    engine = create_engine(database_url, echo=False)
+    full_table = pd.read_sql(f'SELECT index, datetime, value, item_id FROM csv_editor_table', con=engine)
+
+    chosen_tags = request.session.get('chosen_tags') or full_table['item_id'].unique().tolist()
+
+    temp_table = full_table[full_table['item_id'].isin(chosen_tags)]
+
+    temp_table.to_sql(name='csv_editor_temp_table', con=engine, if_exists='replace', chunksize=100000)
     Thread(target=run_tornado_with_bokeh).start()
     session = pull_session(url="http://127.0.0.1:5006/csv_editor")
 
@@ -38,85 +66,83 @@ def csv_editor_view(request):
     return render(request, 'templates/csv_editor/embed.html', {'script': script})
 
 
-class CSVEditorDatasets(View):
+def index(request):
+    context = {}
+    return render(request, 'templates/csv_editor/csv_editor_index.html', context)
 
-    def get(self, request):
-        request.session['next_to'] = request.META.get('HTTP_REFERER')
-        engine = create_engine(database_url, echo=False)
-        table_names = [table_name for table_name in engine.table_names()
-                       if 'auth' not in table_name and 'django' not in table_name]
 
-        return render(request, 'templates/csv_editor/csv_editor_index.html', {'table_names': table_names})
+def settings_index(request):
+    context = {}
+    context['chosen_tags'] = request.session.get('chosen_tags') or []
+    request.session['chosen_tags'] = context['chosen_tags']
+    tags = request.session.get('tags', [])
+    context['tags'] = [tag for tag in tags if tag not in context['chosen_tags']]
+    request.session['tags'] = context['tags']
+    return render(request, 'templates/csv_editor/csv_editor_settings.html', context)
 
-    def post(self, request):
-        context = {}
-        context['next_to'] = request.session.get('next_to')
 
-        table_name = request.POST.get('table_name') or 'csv_editor_table'
+def add_tag(request):
+    tags = request.session['tags']
+    chosen_tags = request.session.get('chosen_tags') or []
+    new_tag = request.POST.get('add_tag', None)
+    request.session['tags'] = [tag for tag in tags if tag not in chosen_tags]
+    if new_tag:
+        chosen_tags.append(new_tag)
+        request.session['chosen_tags'] = chosen_tags
+    return redirect('csv_editor:settings')
 
+
+def reset(request):
+    for key in ['chosen_tags']:
         try:
-            csv_file = request.FILES["csv_file"]
-            if not csv_file.name.endswith('.csv'):
-                messages.error(request, 'File is not CSV type')
-                return HttpResponseRedirect(reverse("datasets:upload_csv"))
-            # if file is too large, return
-            # if csv_file.multiple_chunks():
-                # messages.error(request, "Uploaded file is too big (%.2f MB)." % (csv_file.size / (1000 * 1000),))
-                # return HttpResponseRedirect(reverse("myapp:upload_csv"))
-            file_data = read_csv(csv_file, parse_dates=True, index_col='datetime')
-            # smoothing_window = 1
-            # file_data = file_data.rolling(window=f'{smoothing_window}min').mean()
-            tags_not_allowed = [tag for tag in ['datetime', 'item_id', 'value'] if tag not in file_data]
+            del request.session[key]
+        except BaseException as e:
+            print(e)
+    return redirect('csv_editor:settings')
 
-            if tags_not_allowed:
-                if 'datetime' not in tags_not_allowed:
-                    file_data.index = file_data['datetime']
-                file_data = melt_table(file_data)
-            # print(len(set(file_data.item_id)))
 
-            model_ = CSVEditorDatasetModel()
-            model_.truncate()
-            engine = create_engine(database_url, echo=False)
-            file_data.to_sql(name=table_name, con=engine, if_exists='replace', chunksize=100000)
+def save_dataframe(request):
 
-            status = f'Table is saved with name: {table_name}'
-            context['error'] = status
-            return render(request, 'templates/csv_editor/csv_editor_index.html', context)
-        except BaseException as error:
-            context['error'] = str(error)
-            return render(request, 'templates/csv_editor/csv_editor_index.html', context)
+    context = {}
+    context['next_to'] = request.session.get('next_to')
 
-class CSVEditorTempDatasets(View):
+    table_name = request.POST.get('table_name') or 'csv_editor_table'
+    # try:
+    csv_file = request.FILES["csv_file"]
+    if not csv_file.name.endswith('.csv'):
+        messages.error(request, 'File is not CSV type')
+        return HttpResponseRedirect(reverse("datasets:upload_csv"))
+    # if file is too large, return
+    # if csv_file.multiple_chunks():
+    # messages.error(request, "Uploaded file is too big (%.2f MB)." % (csv_file.size / (1000 * 1000),))
+    # return HttpResponseRedirect(reverse("myapp:upload_csv"))
+    file_data = read_csv(csv_file, parse_dates=True, index_col='datetime')
+    del request.session['chosen_tags']
+    smoothing_window = request.session.get('smoothing_window')
+    if smoothing_window:
+        data_for_smooth = pivot_table(file_data)
+        data_for_smooth = data_for_smooth.rolling(window=f'{smoothing_window}min').mean()
+        file_data = melt_table(data_for_smooth)
 
-    def get(self, request):
-        request.session['next_to'] = request.META.get('HTTP_REFERER')
-        engine = create_engine(database_url, echo=False)
-        table_names = [table_name for table_name in engine.table_names()
-                       if 'auth' not in table_name and 'django' not in table_name]
+    tags_not_allowed = [tag for tag in ['datetime', 'item_id', 'value'] if tag not in file_data]
 
-        return render(request, 'templates/csv_editor/csv_editor_settings.html', {'table_names': table_names})
+    if tags_not_allowed:
+        if 'datetime' not in tags_not_allowed:
+            file_data.index = file_data['datetime']
+        file_data = melt_table(file_data)
+    request.session['tags'] = file_data['item_id'].unique().tolist()
 
-    def post(self, request):
-        context = {}
-        context['next_to'] = request.session.get('next_to')
-        table_name = 'csv_editor_temp_table'
-        tags = request.POST.get('tags')
+    model_ = CSVEditorDatasetModel()
+    model_.truncate()
+    engine = create_engine(database_url, echo=False)
+    file_data.to_sql(name=table_name, con=engine, if_exists='replace', chunksize=100000)
 
-        try:
-            full_table = 1#######################################################################
-            tags = tags or full_table.columns
-            temp_table = full_table[tags]
-            model_ = CSVEditorTempDatasetModel()
-            model_.truncate()
-            engine = create_engine(database_url, echo=False)
-            temp_table.to_sql(name=table_name, con=engine, if_exists='replace', chunksize=100000)
-
-            status = f'Table is saved with name: {table_name}'
-            context['error'] = status
-            return render(request, 'templates/csv_editor/csv_editor_settings.html', context)
-        except BaseException as error:
-            context['error'] = str(error)
-            return render(request, 'templates/csv_editor/csv_editor_settings.html', context)
+    status = f'Table is saved with name: {table_name}'
+    context['error'] = status
+    return redirect('csv_editor:settings')
+    # except BaseException as error:
+    #     context['error'] = str(error)
+    #     return render(request, 'templates/csv_editor/csv_editor_index.html', context)
 
 
 def melt_table(data: DataFrame):

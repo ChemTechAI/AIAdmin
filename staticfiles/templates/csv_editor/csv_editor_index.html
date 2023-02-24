@@ -9,32 +9,18 @@
         {{ error }}
         <br>
         <br>
-        {% if next_to %}
-            <a class="button-link" href={% url 'csv_editor:csv_editor_plot' %}> Start table edition </a>
-            <a class="button-link" href={% url 'csv_editor:index' %}> Back to file uploading page</a>
-        {% else %}
-            <a class="button-link" href={% url 'csv_editor:index' %}> Back to file uploading page</a>
-        {% endif %}
-    {% else %}
-    <form action="{% url 'csv_editor:index' %}" method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        <p>
-            <label for="table_name">Table name: </label>
-            <datalist id="table_names_list">
-                {% for table_name in table_names %}
-                    <option value="{{ table_name }}">{{ table_name }}</option>
-                {% endfor %}
-            </datalist>
-            <input id="table_name" type="text" name="table_name" list="table_names_list">
-        </p>
-        <input type="file" title="Upload file" name="csv_file" style="border: 1px solid black; padding: 5px;
-" required="required">
-        <input type="submit" value="Upload" style="border: 1px solid green; padding:5px; border-radius: 2px; cursor: pointer;">
-        <br>
-        <br>
-        <input type="text" title="Set smoothing window" name="smoothing_window" style="border: 1px solid black; padding: 5px;
-" required="required">
 
+    {% else %}
+    <form action="{% url 'csv_editor:save_dataframe' %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label for="smoothing_window"> Smoothing window: </label>
+        <input type="number" name="smoothing_window" id="smoothing_window" placeholder="1">
+        <br>
+        <label for="csv_file"> Choose csv file: </label>
+        <input type="file" title="Upload file" name="csv_file" style="border: 1px solid black; padding: 5px;
+" required="required"> <br>
+
+        <input type="submit" value="Upload" style="border: 1px solid green; padding:5px; border-radius: 2px; cursor: pointer;">
     </form>
     {% endif %}
 {% endblock %}
