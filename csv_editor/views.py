@@ -60,11 +60,8 @@ def csv_editor_view(request):
 
 
 def index(request):
-    chosen_tag = request.session.get('chosen_tag')
-    if chosen_tag:
-        session_started = True
-    else:
-        session_started = False
+    engine = create_engine(database_url, echo=False)
+    session_started = 'csv_editor_table' in engine.table_names()
     return render(request, 'templates/csv_editor/csv_editor_index.html', {'session_started': session_started})
 
 
