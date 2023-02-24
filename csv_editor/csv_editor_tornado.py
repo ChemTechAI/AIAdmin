@@ -1,6 +1,7 @@
 import datetime
 import os
 
+import js2py as js2py
 import pandas as pd
 from asgiref.sync import sync_to_async
 from bokeh.embed import server_document
@@ -16,6 +17,7 @@ from bokeh.server.server import Server
 from bokeh.themes import Theme, built_in_themes
 from bokeh.util.browser import view
 from django.conf import settings
+from django.db import connection
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy import create_engine
 from tornado.ioloop import IOLoop
@@ -41,7 +43,8 @@ function exportData(table) {
         a.download = "file.csv";
 
     }
-function table_to_csv(source) {
+function table_to_csv() {
+    source = {source_obj}
     const columns = Object.keys(source.data)
     const nrows = source.get_length()
     const lines = [columns.join(',')]
@@ -139,7 +142,6 @@ def pivot_table(data, **kwargs):
                           fill_value=-123,
                           aggfunc='first').replace(-123, method='ffill').replace(-123, method='bfill')
     data.sort_values(by=['datetime'], inplace=True)
-
     return data
 
 
@@ -174,6 +176,14 @@ def prepare_dataset_to_plot():
 
     return data
 
+def prepare_dataset_to_download():
+    engine = create_engine(database_url)
+    data = pd.read_sql(sql='SELECT datetime, item_id, value FROM csv_editor_table', con=engine)
+    data = pivot_table(data)
+    data.index = data.index.astype(str)
+    print(data.index)
+    return data
+
 
 def create_hover_tool(renderer):
     tooltips = [
@@ -204,16 +214,19 @@ def create_table_to_plot(source):
 
 
 def save_changes(changed_df: pd.DataFrame):
-    # model = CSVEditorDatasetModel()
-    # model.value = changed_df['value'].values
-    # model.datetime = changed_df['datetime'].values
-    # model.item_id = changed_df['item_id'].values
-    # model.save()
-    changed_df['datetime'] = changed_df['datetime'].astype(str)
-    updated_values = changed_df[['datetime', 'value']].to_dict()
-    print(updated_values)
-    for item_id in set(changed_df['item_id'].values):
-        CSVEditorDatasetModel.objects.filter(item_id=item_id).update(**updated_values)
+    engine = create_engine(database_url)
+    main_data = pd.read_sql(sql='SELECT index, datetime, item_id, value FROM csv_editor_table', con=engine)
+    changed_df.rename(columns={'id':"index"}, inplace=True)
+    if isinstance(changed_df['datetime'].iloc[-1], int):
+        changed_df['datetime'] = changed_df['datetime'].apply(
+            lambda x: pd.to_datetime('1970-01-01') + datetime.timedelta(milliseconds=float(x)))
+    old_idx = main_data.loc[main_data['item_id'].isin(set(changed_df['item_id']))].index
+    main_data = main_data.drop(old_idx)
+    main_data = pd.concat([main_data, changed_df[['index','datetime', 'item_id', 'value']]])
+    main_data.sort_values(by='index')
+    engine = create_engine(database_url, echo=False)
+    main_data.to_sql(name='csv_editor_table', con=engine, if_exists='replace', chunksize=100000)
+
 
 def previous_page_view():
     pass
@@ -253,30 +266,38 @@ def plot_csv_editor(doc):
     def save_df(new):
         df = source.to_df()
         save_changes(changed_df=df)
-        print('Sucsesss')
+        print('Successfully synchronized')
 
     def return_button_callback(new):
         df = source.to_df()
-        # save_changes(changed_df=df)
-        return previous_page_view()
+        save_changes(changed_df=df)
+        js2py.eval_js('window.open("http://127.0.0.1:8000/csv_editor/")')
+        js2py.eval_js('history.back()')
+        js2py.eval_js('console.log("_self")')
+        # driver = webdriver.PhantomJS()
+        # driver.get(url)
+        # result = driver.execute_script(myscript)
+        # driver.quit()
+        # js2py.eval_js(CustomJS(args=dict(urls=['http://127.0.0.1:8000/csv_editor/']),
+        #                    code="urls.forEach(url => window.open(url,'_self'))").to_json())
 
-    def download_callback(new):
-
-        return source.to_df()
 
     # CREATE BUTTONS
-    download_button = Button(label="Download csv file",
+    download_button = Button(label="Download main table",
                          button_type="success")
-    synchronize_button = Button(label="Synchronize csv file",
+    synchronize_button = Button(label="Synchronize with main table",
                              button_type="success")
-    return_button = Button(label="Synchronize and return",
+    return_button = Button(label="Return",
                                 button_type="success")
     # SET EVENTS TO EACH BUTTONS
     synchronize_button.on_event("button_click", save_df)
     return_button.on_event("button_click", return_button_callback)
+    # return_button.js_on_click(CustomJS(args=dict(urls=['http://127.0.0.1:8000/csv_editor/']),
+    #                        code="urls.forEach(url => window.open(url,'_self'))"))
     # download_button.on_event("button_click", download_callback)
     download_button.js_on_event("button_click", CustomJS(args=dict(source=source),
-                                                     code=JS_CODE))
+    # download_button.js_on_event("button_click", CustomJS(args=dict(source=ColumnDataSource(prepare_dataset_to_download())),
+                                                         code=JS_CODE))
 
     show_content = Column(children=[ploted_figure, row(download_button, synchronize_button, return_button)], sizing_mode='stretch_both')
 

@@ -103,7 +103,8 @@ class CSVEditorTempDatasets(View):
         tags = request.POST.get('tags')
 
         try:
-            full_table = 1
+            full_table = 1#######################################################################
+            tags = tags or full_table.columns
             temp_table = full_table[tags]
             model_ = CSVEditorTempDatasetModel()
             model_.truncate()

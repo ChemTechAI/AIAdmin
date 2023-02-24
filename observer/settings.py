@@ -17,6 +17,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 os.environ["BOKEH_SECRET_KEY"] = "kitjOI83DgklnTuUykyHYABBCaV8oItJTZTQqVBav97G"
 os.environ["BOKEH_SIGN_SESSIONS"] = "True"
+os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "True"
 # from tornado_websockets import WebSocket
 
 # Quick-start development settings - unsuitable for production
