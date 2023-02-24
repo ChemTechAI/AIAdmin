@@ -215,14 +215,17 @@ def create_table_to_plot(source):
 def save_changes(changed_df: pd.DataFrame):
     engine = create_engine(database_url)
     main_data = pd.read_sql(sql='SELECT index, datetime, item_id, value FROM csv_editor_table', con=engine)
-    changed_df.rename(columns={'id':"index"}, inplace=True)
-    if isinstance(changed_df['datetime'].iloc[-1], int):
+    changed_df.rename(columns={'id': "index"}, inplace=True)
+    if not isinstance(changed_df['datetime'].iloc[-1], (str, datetime.datetime)):
         changed_df['datetime'] = changed_df['datetime'].apply(
             lambda x: pd.to_datetime('1970-01-01') + datetime.timedelta(milliseconds=float(x)))
     old_idx = main_data.loc[main_data['item_id'].isin(set(changed_df['item_id']))].index
     main_data = main_data.drop(old_idx)
-    main_data = pd.concat([main_data, changed_df[['index','datetime', 'item_id', 'value']]])
-    main_data.sort_values(by='index')
+    main_data = pd.concat([main_data, changed_df[['index', 'datetime', 'item_id', 'value']]])
+
+    main_data = main_data[main_data['datetime'].isin(changed_df['datetime'])]
+
+    main_data.drop_duplicates(subset='datetime', keep='last', inplace=True)
     engine = create_engine(database_url, echo=False)
     main_data.to_sql(name='csv_editor_table', con=engine, if_exists='replace', chunksize=100000)
 
@@ -286,19 +289,19 @@ def plot_csv_editor(doc):
                          button_type="success")
     synchronize_button = Button(label="Synchronize with main table",
                              button_type="success")
-    return_button = Button(label="Return",
+    return_button = Button(label="Return to settings",
                                 button_type="success")
     # SET EVENTS TO EACH BUTTONS
     synchronize_button.on_event("button_click", save_df)
-    return_button.on_event("button_click", return_button_callback)
-    # return_button.js_on_click(CustomJS(args=dict(urls=['http://127.0.0.1:8000/csv_editor/']),
-    #                        code="urls.forEach(url => window.open(url,'_self'))"))
+    # return_button.on_event("button_click", return_button_callback)
+    return_button.js_on_click(CustomJS(args=dict(urls=['http://127.0.0.1:8000/csv_editor/csv_editor_settings']),
+                           code="urls.forEach(url => window.open(url,'_self'))"))
     # download_button.on_event("button_click", download_callback)
-    download_button.js_on_event("button_click", CustomJS(args=dict(source=source),
+    # download_button.js_on_event("button_click", CustomJS(args=dict(source=source),
     # download_button.js_on_event("button_click", CustomJS(args=dict(source=ColumnDataSource(prepare_dataset_to_download())),
-                                                         code=JS_CODE))
+    #                                                      code=JS_CODE))
 
-    show_content = Column(children=[ploted_figure, row(download_button, synchronize_button, return_button)], sizing_mode='stretch_both')
+    show_content = Column(children=[ploted_figure, row(synchronize_button, return_button)], sizing_mode='stretch_both')
 
     doc.add_root(show_content)
     doc.theme = built_in_themes['dark_minimal']
