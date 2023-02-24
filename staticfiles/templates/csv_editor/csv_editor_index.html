@@ -11,7 +11,7 @@
         <br>
 
     {% else %}
-    <form action="{% url 'csv_editor:save_dataframe' %}" method="post" enctype="multipart/form-data">
+    <form action="{% url 'csv_editor:upload_dataframe' %}" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <label for="smoothing_window"> Smoothing window: </label>
         <input type="number" name="smoothing_window" id="smoothing_window" placeholder="1">

@@ -50,17 +50,27 @@ def csv_editor_view(request):
 
     temp_table.to_sql(name='csv_editor_temp_table', con=engine, if_exists='replace', chunksize=100000)
     Thread(target=run_tornado_with_bokeh).start()
-    session = pull_session(url="http://127.0.0.1:5006/csv_editor")
+    session = pull_session(url=f"http://{settings.IP_LOCATION}:5006/csv_editor")
 
     script = server_session(model=None,
                             session_id=session.id,
-                            url="http://127.0.0.1:5006/csv_editor",
+                            url=f"http://{settings.IP_LOCATION}:5006/csv_editor",
                             )
     return render(request, 'templates/csv_editor/embed.html', {'script': script})
 
 
 def index(request):
     context = {}
+    context.update(request.session)
+    context['tags'] = request.session.get('tags')
+    if not context['tags']:
+        engine = create_engine(database_url, echo=False)
+        full_table = pd.read_sql(f'SELECT index, datetime, value, item_id FROM csv_editor_table', con=engine)
+        request.session['chosen_tag'] = []
+        request.session['tags'] = full_table['item_id'].unique().tolist()
+
+    context['chosen_tag'] = request.session['chosen_tag']
+
     return render(request, 'templates/csv_editor/csv_editor_index.html', context)
 
 
@@ -102,7 +112,7 @@ def reset(request):
     return redirect('csv_editor:settings')
 
 
-def save_dataframe(request):
+def upload_dataframe(request):
 
     context = {}
     context['next_to'] = request.session.get('next_to')
@@ -119,6 +129,8 @@ def save_dataframe(request):
     # return HttpResponseRedirect(reverse("myapp:upload_csv"))
     file_data = read_csv(csv_file, parse_dates=True, index_col='datetime')
     request.session['chosen_tag'] = []
+    request.session['tags'] = file_data['item_id'].unique().tolist()
+
     smoothing_window = request.session.get('smoothing_window')
     if smoothing_window:
         data_for_smooth = pivot_table(file_data)
@@ -131,7 +143,6 @@ def save_dataframe(request):
         if 'datetime' not in tags_not_allowed:
             file_data.index = file_data['datetime']
         file_data = melt_table(file_data)
-    request.session['tags'] = file_data['item_id'].unique().tolist()
 
     model_ = CSVEditorDatasetModel()
     model_.truncate()

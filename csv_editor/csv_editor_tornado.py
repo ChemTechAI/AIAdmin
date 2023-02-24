@@ -161,7 +161,7 @@ env = Environment(loader=FileSystemLoader('templates'))
 class IndexHandler(RequestHandler):
     def get(self):
         template = env.get_template('embed.html')
-        script = server_document('http://127.0.0.1:5006/csv_editor')
+        script = server_document(f'http://{settings.IP_LOCATION}:5006/csv_editor')
         self.write(template.render(script=script, template="Tornado"))
 
 
@@ -318,11 +318,15 @@ def plot_csv_editor(doc):
 
 def run_bokeh_server():
     # server = Server({'/bkapp': bkapp},
+    if settings.IP_LOCATION == '127.0.0.1':
+        django_location = f'{settings.IP_LOCATION}:8000'
+    else:
+        django_location = settings.IP_LOCATION
     server = Server({'/csv_editor': plot_csv_editor},
                     io_loop=IOLoop(),
                     extra_patterns=[('/', IndexHandler)],
-                    allow_websocket_origin=["127.0.0.1:5006",
-                                            "127.0.0.1:8000"])
+                    allow_websocket_origin=[f"{settings.IP_LOCATION}:5006",
+                                            django_location])
     server.start()
     return server
 
@@ -330,7 +334,7 @@ def run_bokeh_server():
 def run_tornado_with_bokeh():
     # print('Opening Tornado app with embedded Bokeh application on http://localhost:5006/')
     server = run_bokeh_server()
-    server.io_loop.add_callback(view, "http://127.0.0.1:5006/csv_editor/")
+    server.io_loop.add_callback(view, f"http://{settings.IP_LOCATION}:5006/csv_editor/")
     server.io_loop.start()
     return server
 
