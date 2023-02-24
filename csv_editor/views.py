@@ -65,9 +65,13 @@ def index(request):
     context['tags'] = request.session.get('tags')
     if not context['tags']:
         engine = create_engine(database_url, echo=False)
-        full_table = pd.read_sql(f'SELECT index, datetime, value, item_id FROM csv_editor_table', con=engine)
         request.session['chosen_tag'] = []
-        request.session['tags'] = full_table['item_id'].unique().tolist()
+        try:
+            full_table = pd.read_sql(f'SELECT index, datetime, value, item_id FROM csv_editor_table', con=engine)
+            request.session['tags'] = full_table['item_id'].unique().tolist()
+        except BaseException as error:
+            print(error)
+            request.session['tags'] = []
 
     context['chosen_tag'] = request.session['chosen_tag']
 
