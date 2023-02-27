@@ -130,8 +130,7 @@ def pivot_table(data, **kwargs):
                           values='value',
                           index=['datetime'],
                           columns=['item_id'],
-                          fill_value=-123,
-                          aggfunc='first').replace(-123, method='ffill').replace(-123, method='bfill')
+                          aggfunc='first')
     data.sort_values(by=['datetime'], inplace=True)
     return data
 
@@ -236,8 +235,6 @@ def plot_csv_editor(doc):
 
     ploted_figure = figure(sizing_mode='stretch_both',
                            toolbar_location='above',
-                           # width_policy='max',
-                           # height_policy='max',
                            x_axis_type="datetime",
                            title='Table editor',
                            tools='box_zoom,undo,xbox_select, box_select,pan, reset, crosshair')
