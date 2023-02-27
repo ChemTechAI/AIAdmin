@@ -287,7 +287,11 @@ def plot_csv_editor(doc):
     # SET EVENTS TO EACH BUTTONS
     synchronize_button.on_event("button_click", save_df)
     drop_datetime_button.on_event("button_click", drop_datetime_in_df)
-    return_button.js_on_click(CustomJS(args=dict(urls=['http://127.0.0.1:8000/csv_editor/csv_editor_settings']),
+    if settings.IP_LOCATION == '127.0.0.1':
+        django_location = f'{settings.IP_LOCATION}:8000'
+    else:
+        django_location = settings.IP_LOCATION
+    return_button.js_on_click(CustomJS(args=dict(urls=[f'http://{django_location}/csv_editor/csv_editor_settings']),
                                        code="urls.forEach(url => window.open(url,'_self'))"))
     # table = create_table_to_plot(source)
     show_content = Column(
