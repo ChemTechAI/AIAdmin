@@ -1,30 +1,21 @@
 import datetime
-import os
 
-import js2py as js2py
-from js2py import require
 import pandas as pd
-from asgiref.sync import sync_to_async
 from bokeh.embed import server_document
 from bokeh.io import curdoc
-from bokeh.layouts import column, row
+from bokeh.layouts import row
 from bokeh.models import DateFormatter, Button, CustomJS, DataTable, TableColumn, PointDrawTool, ColumnDataSource, \
-    HoverTool, Div, TextInput
-from bokeh.models import Slider
+    HoverTool, TextInput
 from bokeh.palettes import Spectral10 as color_palet
 from bokeh.plotting import figure, Column
-from bokeh.sampledata.sea_surface_temperature import sea_surface_temperature
 from bokeh.server.server import Server
-from bokeh.themes import Theme, built_in_themes
+from bokeh.themes import built_in_themes
 from bokeh.util.browser import view
 from django.conf import settings
-from django.db import connection
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy import create_engine
 from tornado.ioloop import IOLoop
 from tornado.web import RequestHandler
-
-from csv_editor.models import CSVEditorDatasetModel
 
 user = settings.DATABASES['default']['USER']
 password = settings.DATABASES['default']['PASSWORD']
@@ -176,6 +167,7 @@ def prepare_dataset_to_plot():
 
     return data
 
+
 def prepare_dataset_to_download():
     engine = create_engine(database_url)
     data = pd.read_sql(sql='SELECT datetime, item_id, value FROM csv_editor_table', con=engine)
@@ -212,10 +204,12 @@ def create_table_to_plot(source):
                       name='result_table')
     return table
 
+
 def group_by(data: pd.DataFrame, freq: str = 'min', method: str = 'mean') -> pd.DataFrame:
     return getattr(data.groupby(data.index.round(freq=freq)), method)()
 
-def save_changes(changed_df: pd.DataFrame, drop_datetime: bool=False) -> object:
+
+def save_changes(changed_df: pd.DataFrame, drop_datetime: bool = False) -> object:
     engine = create_engine(database_url)
     main_data = pd.read_sql(sql='SELECT index, datetime, item_id, value FROM csv_editor_table', con=engine)
     changed_df.rename(columns={'id': "index"}, inplace=True)
@@ -226,10 +220,7 @@ def save_changes(changed_df: pd.DataFrame, drop_datetime: bool=False) -> object:
     main_data = main_data.drop(old_idx)
     main_data = pd.concat([main_data, changed_df[['index', 'datetime', 'item_id', 'value']]])
     if drop_datetime:
-        print(main_data.loc[main_data['datetime'].isin(changed_df['datetime'])].info(), 'main_data')
-        print(changed_df['datetime'], 'changed_df')
         main_data = main_data.loc[main_data['datetime'].isin(changed_df['datetime'])]
-        print(main_data['datetime'])
     main_data = group_by(pivot_table(main_data))
     main_data = main_data.loc[main_data.index.drop_duplicates(keep='first')]
     main_data = melt_table(main_data)
@@ -237,12 +228,7 @@ def save_changes(changed_df: pd.DataFrame, drop_datetime: bool=False) -> object:
     main_data.to_sql(name='csv_editor_table', con=engine, if_exists='replace', chunksize=100000)
 
 
-def previous_page_view():
-    pass
-
-
 def plot_csv_editor(doc):
-
     data_to_plot = prepare_dataset_to_plot()
     curdoc().clear()
 
@@ -250,9 +236,8 @@ def plot_csv_editor(doc):
 
     ploted_figure = figure(sizing_mode='stretch_both',
                            toolbar_location='above',
-                           width_policy='fit',
-                           min_height=900,
-                           height_policy='fit',
+                           # width_policy='max',
+                           # height_policy='max',
                            x_axis_type="datetime",
                            title='Table editor',
                            tools='box_zoom,undo,xbox_select, box_select,pan, reset, crosshair')
@@ -261,8 +246,6 @@ def plot_csv_editor(doc):
                                      size=7, color='color',
                                      legend_field='item_id'
                                      )
-
-    table = create_table_to_plot(source)
 
     draw_tool = PointDrawTool(renderers=[renderer], empty_value='white', add=False)
     points_hover_tool = create_hover_tool(renderer=renderer)
@@ -276,33 +259,43 @@ def plot_csv_editor(doc):
         df = source.to_df()
         save_changes(changed_df=df)
         text.value = f'{datetime.datetime.now().time().strftime("%H:%M:%S")} | Successfully synchronized'
-
         print('Successfully synchronized')
 
     def drop_datetime_in_df(new):
         df = source.to_df()
         save_changes(changed_df=df, drop_datetime=True)
-
         text.value = f'{datetime.datetime.now().time().strftime("%H:%M:%S")} | All deleted datetime indexes was successfully synchronized'
         print('Successfully drop datetime')
 
+    def rm_points(new):
+        i = data_to_plot.iloc[source.selected.indices].index  # get index to delete
+        data_to_plot.drop(i, inplace=True, errors='ignore')  # modify dataframe
+        source.data = data_to_plot  # update data source
+        source.selected.indices = []  # clear selection
+
     # CREATE BUTTONS
     drop_datetime_button = Button(label="Synchronize deleted datetime with the main table",
-                         button_type="success")
+                                  button_type="success")
     synchronize_button = Button(label="Save changes",
-                             button_type="success")
-    return_button = Button(label="Return to settings",
                                 button_type="success")
+    return_button = Button(label="Return to settings",
+                           button_type="success")
+    remove_button = Button(label="Remove selected points",
+                           button_type="success")
+    remove_button.on_click(rm_points)
+
     text = TextInput(
         value=f'{datetime.datetime.now().time().strftime("%H:%M:%S")} | No changes yet', width=500)
+
     # SET EVENTS TO EACH BUTTONS
     synchronize_button.on_event("button_click", save_df)
     drop_datetime_button.on_event("button_click", drop_datetime_in_df)
-    # text.js_on_change('value', CustomJS(code=f'alert("{text.value}")'))
     return_button.js_on_click(CustomJS(args=dict(urls=['http://127.0.0.1:8000/csv_editor/csv_editor_settings']),
-                           code="urls.forEach(url => window.open(url,'_self'))"))
-
-    show_content = Column(children=[ploted_figure, row(drop_datetime_button,synchronize_button, return_button, text), table], sizing_mode='stretch_both')
+                                       code="urls.forEach(url => window.open(url,'_self'))"))
+    # table = create_table_to_plot(source)
+    show_content = Column(
+        children=[remove_button, ploted_figure, row(drop_datetime_button, synchronize_button, return_button, text)],
+        sizing_mode='stretch_both')
 
     doc.add_root(show_content)
     doc.theme = built_in_themes['dark_minimal']
@@ -318,7 +311,6 @@ def plot_csv_editor(doc):
 
 
 def run_bokeh_server():
-    # server = Server({'/bkapp': bkapp},
     if settings.IP_LOCATION == '127.0.0.1':
         django_location = f'{settings.IP_LOCATION}:8000'
     else:
@@ -333,7 +325,6 @@ def run_bokeh_server():
 
 
 def run_tornado_with_bokeh():
-    # print('Opening Tornado app with embedded Bokeh application on http://localhost:5006/')
     server = run_bokeh_server()
     server.io_loop.add_callback(view, f"http://{settings.IP_LOCATION}:5006/csv_editor/")
     server.io_loop.start()
