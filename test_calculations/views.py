@@ -242,10 +242,10 @@ def index(request):
 def calculate(request):
     context = {}
     context.update(request.session)
-    chosen_function_config = request.session['chosen_function_config']
-    chosen_function_params = request.session['chosen_function_params']
-    chosen_function_name = request.session['chosen_function_name']
-    chosen_project_name = request.session['chosen_function_name']
+    chosen_function_config = request.session.get('chosen_function_config', None)
+    chosen_function_params = request.session.get('chosen_function_params', None)
+    chosen_function_name = request.session.get('chosen_function_name', None)
+    chosen_project_name = request.session.get('chosen_project_name', None)
 
     context["config_params_html"] = prepare_html_for_config(request=request, config=chosen_function_config)
 
@@ -272,7 +272,8 @@ def calculate(request):
         context["function_params"] = chosen_function_params
 
         prepared_input = generate_data_from_manual(params=chosen_function_params)
-
+        print('prepared_input')
+        print(prepared_input)
         if type(prepared_input) == pd.DataFrame:
             task = calculate_from_dict_delayed.delay(
                 function_name=chosen_function_name,

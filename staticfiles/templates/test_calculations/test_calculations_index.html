@@ -63,7 +63,7 @@
     {% endif %}
     <br>
     {% if chosen_function_name and function_params %}
-        <form action="{% url "test_calculations:index" %}" method="POST" name="specified_parameters" enctype="multipart/form-data">
+        <form action="{% url "test_calculations:calculate_result" %}" method="POST" name="specified_parameters" enctype="multipart/form-data">
         {% csrf_token %}
             <h3>Set params manually </h3>
             {% for parameter_name, parameter_value in function_params.items %}

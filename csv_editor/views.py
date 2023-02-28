@@ -6,6 +6,7 @@ from django.shortcuts import render, redirect
 from django.http.response import HttpResponse, HttpResponseRedirect
 from django.urls import reverse
 from django.conf import settings
+from django.contrib.auth.decorators import permission_required
 
 from sqlalchemy import create_engine
 from pandas import DataFrame, read_csv
@@ -24,6 +25,7 @@ database_url = f'postgresql://{user}:{password}@localhost:5432/{database_name}'
 TAG_LIMIT = 10
 
 
+@permission_required(login_url='signin', perm='admin')
 def load_full_table(request):
     engine = create_engine(database_url, echo=False)
     try:
@@ -40,6 +42,7 @@ def load_full_table(request):
                       {'error': error})
 
 
+@permission_required(login_url='signin', perm='admin')
 def csv_editor_view(request):
     engine = create_engine(database_url, echo=False)
     full_table = pd.read_sql(f'SELECT index, datetime, value, item_id FROM csv_editor_table', con=engine)
@@ -59,12 +62,14 @@ def csv_editor_view(request):
     return render(request, 'templates/csv_editor/embed.html', {'script': script})
 
 
+@permission_required(login_url='signin', perm='admin')
 def index(request):
     engine = create_engine(database_url, echo=False)
     session_started = 'csv_editor_table' in engine.table_names()
     return render(request, 'templates/csv_editor/csv_editor_index.html', {'session_started': session_started})
 
 
+@permission_required(login_url='signin', perm='admin')
 def settings_index(request):
     context = {}
     context['chosen_tags'] = request.session.get('chosen_tags') or []
@@ -75,6 +80,7 @@ def settings_index(request):
     return render(request, 'templates/csv_editor/csv_editor_settings.html', context)
 
 
+@permission_required(login_url='signin', perm='admin')
 def add_tag(request):
     tags = request.session['tags']
     chosen_tags = request.session.get('chosen_tags') or []
@@ -93,6 +99,7 @@ def add_tag(request):
     return redirect('csv_editor:settings')
 
 
+@permission_required(login_url='signin', perm='admin')
 def reset(request):
     request.session['tags'] = request.session['tags'] + request.session['chosen_tags']
     for key in ['chosen_tags']:
@@ -103,6 +110,7 @@ def reset(request):
     return redirect('csv_editor:settings')
 
 
+@permission_required(login_url='signin', perm='admin')
 def upload_dataframe(request):
 
     context = {}
@@ -119,20 +127,24 @@ def upload_dataframe(request):
     # messages.error(request, "Uploaded file is too big (%.2f MB)." % (csv_file.size / (1000 * 1000),))
     # return HttpResponseRedirect(reverse("myapp:upload_csv"))
     file_data = read_csv(csv_file, parse_dates=True, index_col='datetime')
-    request.session['chosen_tag'] = []
+    file_data.drop(columns='index', inplace=True, errors='ignore')
+    request.session['chosen_tags'] = []
 
-    smoothing_window = request.session.get('smoothing_window')
-    if smoothing_window:
-        data_for_smooth = pivot_table(file_data)
-        data_for_smooth = data_for_smooth.rolling(window=f'{smoothing_window}min').mean()
-        file_data = melt_table(data_for_smooth)
+    smoothing_window = request.POST.get('smoothing_window')
 
     tags_not_allowed = [tag for tag in ['datetime', 'item_id', 'value'] if tag not in file_data]
 
     if tags_not_allowed:
         if 'datetime' not in tags_not_allowed:
             file_data.index = file_data['datetime']
-        file_data = melt_table(file_data)
+    else:
+        file_data = pivot_table(file_data)
+
+    file_data.sort_index(inplace=True)
+    if smoothing_window:
+        file_data = file_data.rolling(window=f'{smoothing_window}min').mean()
+
+    file_data = melt_table(file_data)
 
     request.session['tags'] = file_data['item_id'].unique().tolist()
 
@@ -162,5 +174,3 @@ def melt_table(data: DataFrame):
                                  ignore_index=True)
 
     return versed_data
-
-
