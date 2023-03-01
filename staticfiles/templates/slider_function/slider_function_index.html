@@ -1,0 +1,45 @@
+{% extends "templates/basic/base.html" %}
+
+{% load static %}
+
+{% block title %} Slider function {% endblock %}
+{% block headername %} Slider function {% endblock %}
+
+{% block content %}
+
+<form action="{% url "slider_function:index" %}" method="POST" name="specified_parameters" enctype="multipart/form-data">
+{% csrf_token %}
+    <h3>Set params: </h3>
+
+    <input type="file" name="file" style="border: 1px solid black; padding: 5px;">
+    <br>
+    <label for="var_name">Expression:</label>
+    <input type="text" name="expression" placeholder="TAG_FROM_EXCEL * var_x" required>
+    <br>
+    <label for="var_name">var_name:</label>
+    <input type="text" name="var_name" placeholder="var_x" required>
+    <br>
+    <label for="value_start">start:</label>
+    <input type="number" name="value_start" step=".0001" required>
+    <br>
+    <label for="value_stop">stop:</label>
+    <input type="number" name="value_stop" step=".0001" required>
+    <br>
+    <label for="value_step">step:</label>
+    <input type="number" name="value_step" step=".0001" required>
+    <br>
+    <label for="tags_to_display">Tags to display:</label>
+    <input type="text" name="tags_to_display">
+    <br>
+    <br>
+
+    <button class="button-4" type="submit" style="height:50px;width:200px"> Calculate </button>
+</form>
+    {% if result %}
+    <div class="plotly-graph">
+        {% autoescape off %}
+            {{ result }}
+        {% endautoescape %}
+    {% endif %}
+
+{% endblock %}

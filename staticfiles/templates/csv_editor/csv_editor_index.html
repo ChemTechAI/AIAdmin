@@ -1,0 +1,32 @@
+{% extends "templates/basic/base.html" %}
+
+{% block title %} CSV editor {% endblock %}
+{% block headername %} CSV editor {% endblock %}
+
+{% block content %}
+
+    {% if error %}
+        {{ error }}
+        <br>
+        <br>
+
+    {% else %}
+    <form action="{% url 'csv_editor:upload_dataframe' %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <label for="smoothing_window"> Smoothing window: </label>
+        <input type="number" name="smoothing_window" id="smoothing_window" placeholder="1">
+        <br>
+        <label for="csv_file"> Choose csv file: </label>
+        <input type="file" title="Upload file" name="csv_file" style="border: 1px solid black; padding: 5px;
+" required="required"> <br>
+
+        <input type="submit" value="Upload" style="border: 1px solid green; padding:5px; border-radius: 2px; cursor: pointer;">
+        <br>
+        <br>
+        {% if session_started %}
+            <a class="button-4" href="{% url "csv_editor:settings" %}"> Continue last session </a>
+        {% endif %}
+    </form>
+    {% endif %}
+{% endblock %}
+

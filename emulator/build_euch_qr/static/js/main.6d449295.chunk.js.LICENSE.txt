@@ -1,0 +1,3 @@
+//! Dev only.
+
+//! In some cases it's useful to have global store (first prod run tests).

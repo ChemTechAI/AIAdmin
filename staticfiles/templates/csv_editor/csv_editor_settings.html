@@ -1,0 +1,45 @@
+{% extends "templates/basic/base.html" %}
+
+{% block title %} CSV editor settings {% endblock %}
+{% block headername %} CSV editor settings {% endblock %}
+
+{% block content %}
+
+    {% if error %}
+        <div class="fail"> {{ error }} </div>
+    {% endif %}
+
+
+    {% if tags %}
+        <form action="{% url 'csv_editor:add_tag' %}" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+        <label for="tags"> Choose tags: </label>
+
+        <input type="text" name="add_tag" list="tags">
+            <datalist id="tags">
+                {% for tag in tags %}
+                  <option value={{ tag }}>{{ tag }}</option>
+                {% endfor %}
+            </datalist>
+            <button class="button-4" type='submit'> Add tag </button>
+        </form>
+    {% endif %}
+    {% if chosen_tags %}
+        Chosen tags:
+        {% for chosen_tag in  chosen_tags %}
+            {{ chosen_tag }}
+        {% endfor %}
+
+    {% endif %}
+    <br>
+    <form action="{% url "csv_editor:reset" %}" method="POST">
+        {% csrf_token %}
+        <button class="button-4" type='submit'> Reset </button>
+    </form>
+    <br>
+    <a class="button-4" href={% url 'csv_editor:csv_editor_plot' %}> Start table edition </a><br><br>
+    <a class="button-4" href="{% url "csv_editor:load_dataframe" %}"> Download full table result </a><br><br>
+    <a class="button-4" href={% url 'csv_editor:index' %}> Back to file uploading page</a><br>
+
+
+{% endblock %}
