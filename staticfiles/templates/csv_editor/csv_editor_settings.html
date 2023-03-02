@@ -29,7 +29,8 @@
         {% for chosen_tag in  chosen_tags %}
             {{ chosen_tag }}
         {% endfor %}
-
+    {% else %}
+        <div class="fail"> Please, choose tags </div>
     {% endif %}
     <br>
     <form action="{% url "csv_editor:reset" %}" method="POST">

@@ -44,22 +44,28 @@ def load_full_table(request):
 
 @permission_required(login_url='signin', perm='admin')
 def csv_editor_view(request):
-    engine = create_engine(database_url, echo=False)
-    full_table = pd.read_sql(f'SELECT index, datetime, value, item_id FROM csv_editor_table', con=engine)
 
-    chosen_tags = request.session.get('chosen_tags') or full_table['item_id'].unique().tolist()
+    chosen_tags = request.session.get('chosen_tags', None)
+    print('chosen_tags', chosen_tags)
+    if chosen_tags:
+        print('pfiffwefwf')
 
-    temp_table = full_table[full_table['item_id'].isin(chosen_tags)]
+        engine = create_engine(database_url, echo=False)
+        full_table = pd.read_sql(f'SELECT index, datetime, value, item_id FROM csv_editor_table', con=engine)
 
-    temp_table.to_sql(name='csv_editor_temp_table', con=engine, if_exists='replace', chunksize=100000)
-    Thread(target=run_tornado_with_bokeh).start()
-    session = pull_session(url=f"http://{settings.IP_LOCATION}:5006/csv_editor")
+        temp_table = full_table[full_table['item_id'].isin(chosen_tags)]
 
-    script = server_session(model=None,
-                            session_id=session.id,
-                            url=f"http://{settings.IP_LOCATION}:5006/csv_editor",
-                            )
-    return render(request, 'templates/csv_editor/embed.html', {'script': script})
+        temp_table.to_sql(name='csv_editor_temp_table', con=engine, if_exists='replace', chunksize=100000)
+        Thread(target=run_tornado_with_bokeh).start()
+        session = pull_session(url=f"http://{settings.IP_LOCATION}:5006/csv_editor")
+
+        script = server_session(model=None,
+                                session_id=session.id,
+                                url=f"http://{settings.IP_LOCATION}:5006/csv_editor",
+                                )
+        return render(request, 'templates/csv_editor/embed.html', {'script': script})
+    else:
+        return redirect('csv_editor:settings')
 
 
 @permission_required(login_url='signin', perm='admin')
